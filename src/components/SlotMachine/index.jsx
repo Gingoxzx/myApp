@@ -11,29 +11,45 @@ const PRIZES = [
 ];
 
 const SlotMachine = ({ onResult }) => {
+  // 控制整体抽奖状态
   const [isSpinning, setIsSpinning] = useState(false);
+  // 存储抽奖结果信息
   const [result, setResult] = useState(null);
+  // 存储每列的定时器，用于清理
   const spinTimers = useRef([]);
+  // 记录每列转动的次数
   const spinCounts = useRef([0, 0, 0]);
+  // 存储三列的 DOM 引用
   const slotRefs = useRef([null, null, null]);
 
-  // 开始转动单个老虎机列
+  /**
+   * 控制单个老虎机列的转动
+   * @param {number} index - 当前列的索引（0-2）
+   * @param {number} stopAt - 最终停止的位置（奖品索引）
+   * @param {number} totalSpins - 需要转动的总次数
+   */
   const spinSlot = (index, stopAt, totalSpins) => {
     spinCounts.current[index] = 0;
     const slotElement = slotRefs.current[index];
+    // 获取单个奖品项的高度
     const itemHeight = slotElement.children[0].offsetHeight;
+    // 计算整个奖品列表的总高度
     const totalHeight = itemHeight * PRIZES.length;
+    // 当前滚动位置
     let currentScroll = slotElement.scrollTop;
+    // 初始滚动速度
     let speed = 20;
+    // 是否开始减速的标志
     let slowdownStart = false;
 
+    // 设置定时器控制滚动
     const timer = setInterval(() => {
+      // 增加转动次数计数
       spinCounts.current[index]++;
-
-      // 增加滚动位置，但步长更小
+      // 更新滚动位置
       currentScroll += speed;
 
-      // 如果滚动到底部，重置到顶部
+      // 处理滚动边界：到达底部时重置到顶部
       if (currentScroll >= totalHeight) {
         currentScroll = 0;
         slotElement.scrollTop = 0;
@@ -41,16 +57,18 @@ const SlotMachine = ({ onResult }) => {
         slotElement.scrollTop = currentScroll;
       }
 
-      // 达到指定转动次数后开始减速
+      // 达到指定转动次数后开始减速过程
       if (spinCounts.current[index] >= totalSpins && !slowdownStart) {
         slowdownStart = true;
         let currentSpeed = speed;
 
+        // 减速动画函数
         const slowdown = () => {
-          // 减速系数改为0.98，使减速更加缓慢
+          // 速度衰减：每次乘以0.98，最小保持1
           currentSpeed = Math.max(1, currentSpeed * 0.98);
           currentScroll += currentSpeed;
 
+          // 处理减速过程中的滚动边界
           if (currentScroll >= totalHeight) {
             currentScroll = 0;
             slotElement.scrollTop = 0;
@@ -58,27 +76,34 @@ const SlotMachine = ({ onResult }) => {
             slotElement.scrollTop = currentScroll;
           }
 
+          // 计算目标位置和当前位置
           const targetScroll = stopAt * itemHeight;
           const currentPos = slotElement.scrollTop;
+          // 判断是否接近目标位置（误差在1/4个项目高度内）
           const isNearTarget =
             Math.abs(currentPos - targetScroll) < itemHeight / 4;
 
+          // 如果速度仍然大于1且未接近目标，继续减速
           if (currentSpeed > 1 && !isNearTarget) {
             requestAnimationFrame(slowdown);
           } else {
+            // 停止定时器并设置到最终位置
             clearInterval(timer);
             slotElement.scrollTop = targetScroll;
 
+            // 当最后一列也停止时，检查结果
             if (index === 2) {
               setTimeout(() => {
-                // 直接从 DOM 中读取最终位置
+                // 获取所有列的最终位置
                 const finalSlots = [0, 1, 2].map(i =>
                   Math.floor(slotRefs.current[i].scrollTop / itemHeight)
                 );
+                // 检查是否所有列都停在相同位置
                 const allSame = finalSlots.every(
                   slot => slot === finalSlots[0]
                 );
 
+                // 设置抽奖结果
                 if (allSame) {
                   setResult(`恭喜获得 ${PRIZES[finalSlots[0]].name}！`);
                   onResult?.(true, PRIZES[finalSlots[0]]);
@@ -87,16 +112,19 @@ const SlotMachine = ({ onResult }) => {
                   onResult?.(false);
                 }
 
+                // 重置抽奖状态
                 setIsSpinning(false);
-              }, 300);
+              }, 300); // 延迟300ms显示结果，让动画完全结束
             }
           }
         };
 
+        // 开始减速动画
         requestAnimationFrame(slowdown);
       }
-    }, 25); // 增加间隔时间（从16改为25）
+    }, 25); // 每25ms执行一次滚动更新
 
+    // 保存定时器引用，用于清理
     spinTimers.current[index] = timer;
   };
 
