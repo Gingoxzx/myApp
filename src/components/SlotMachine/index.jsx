@@ -147,11 +147,30 @@ const SlotMachine = ({ onResult }) => {
       ? [winningPrizeIndex, winningPrizeIndex, winningPrizeIndex]
       : (() => {
           // 为不中奖情况生成三个不同的随机数
-          const positions = new Set();
-          while (positions.size < 3) {
-            positions.add(Math.floor(Math.random() * PRIZES.length));
-          }
-          return Array.from(positions);
+          const positions = [];
+          const usedIndexes = new Set();
+
+          // 第一个随机数
+          const firstIndex = Math.floor(Math.random() * PRIZES.length);
+          positions.push(firstIndex);
+          usedIndexes.add(firstIndex);
+
+          // 第二个随机数
+          let secondIndex;
+          do {
+            secondIndex = Math.floor(Math.random() * PRIZES.length);
+          } while (usedIndexes.has(secondIndex));
+          positions.push(secondIndex);
+          usedIndexes.add(secondIndex);
+
+          // 第三个随机数
+          let thirdIndex;
+          do {
+            thirdIndex = Math.floor(Math.random() * PRIZES.length);
+          } while (usedIndexes.has(thirdIndex));
+          positions.push(thirdIndex);
+
+          return positions;
         })();
 
     // 依次启动三列，设置不同的转动次数
